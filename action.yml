@@ -1,13 +1,13 @@
 name: 'Arch Docs'
 description: 'Generate architecture documentation for any repository using Supermodel'
-author: 'Supermodel'
+author: 'Supermodel Tools'
 branding:
   icon: 'layers'
   color: 'purple'
 
 inputs:
   supermodel-api-key:
-    description: 'Supermodel API key'
+    description: 'Supermodel API key from https://supermodeltools.com'
     required: true
   site-name:
     description: 'Display name for the docs site (default: repo name + "Architecture Docs")'
