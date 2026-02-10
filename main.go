@@ -19,7 +19,7 @@ import (
 )
 
 const apiBaseURL = "https://api.supermodeltools.com/v1/graphs/supermodel"
-const pollTimeout = 15 * time.Minute
+const pollTimeout = 45 * time.Minute
 const defaultPollInterval = 10 * time.Second
 const maxFileSize = 10 * 1024 * 1024 // 10MB
 
