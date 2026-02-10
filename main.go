@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -253,8 +254,14 @@ func main() {
 	}
 
 	if baseURL == "" {
-		if repoURL != "" {
-			baseURL = repoURL
+		// Default to GitHub Pages URL for the repo
+		if ghRepo != "" {
+			parts := strings.SplitN(ghRepo, "/", 2)
+			if len(parts) == 2 {
+				baseURL = "https://" + parts[0] + ".github.io/" + parts[1]
+			} else {
+				baseURL = repoURL
+			}
 		} else {
 			baseURL = "https://example.com"
 		}
@@ -373,6 +380,17 @@ func main() {
 	pageCount := countFiles(outputDir, ".html")
 	fmt.Printf("Built %d HTML pages\n", pageCount)
 	logGroupEnd()
+
+	// Step 8b: Rewrite paths if base URL has a path prefix (e.g. GitHub Pages subdirectory)
+	pathPrefix := extractPathPrefix(baseURL)
+	if pathPrefix != "" {
+		logGroup("Rewriting paths for subdirectory deployment")
+		fmt.Printf("Path prefix: %s\n", pathPrefix)
+		if err := rewritePathPrefix(outputDir, pathPrefix); err != nil {
+			fatal("Failed to rewrite paths: %v", err)
+		}
+		logGroupEnd()
+	}
 
 	// Step 9: Set outputs
 	logGroup("Setting outputs")
@@ -715,6 +733,65 @@ func runCommand(name string, args ...string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+// extractPathPrefix returns the path component of a URL (e.g. "/graph2md" from
+// "https://supermodeltools.github.io/graph2md"). Returns "" if no prefix.
+func extractPathPrefix(baseURL string) string {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return ""
+	}
+	p := strings.TrimRight(u.Path, "/")
+	if p == "" || p == "/" {
+		return ""
+	}
+	return p
+}
+
+// rewritePathPrefix rewrites all root-relative paths in HTML and JS files to
+// include the given prefix. This is needed when deploying to a subdirectory
+// (e.g. GitHub Pages project sites at username.github.io/repo/).
+func rewritePathPrefix(dir, prefix string) error {
+	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext != ".html" && ext != ".js" {
+			return nil
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+
+		content := string(data)
+		original := content
+
+		// Rewrite href="/..." to href="/prefix/..."
+		content = strings.ReplaceAll(content, `href="/`, `href="`+prefix+`/`)
+		// Rewrite src="/..." to src="/prefix/..."
+		content = strings.ReplaceAll(content, `src="/`, `src="`+prefix+`/`)
+		// Rewrite fetch("/..." to fetch("/prefix/..."
+		content = strings.ReplaceAll(content, `fetch("/`, `fetch("`+prefix+`/`)
+		// Rewrite JS navigation: window.location.href = "/" + ...
+		content = strings.ReplaceAll(content, `window.location.href = "/"`, `window.location.href = "`+prefix+`/"`)
+		content = strings.ReplaceAll(content, `window.location.href = "/" + `, `window.location.href = "`+prefix+`/" + `)
+
+		if content != original {
+			if err := os.WriteFile(path, []byte(content), info.Mode()); err != nil {
+				return fmt.Errorf("writing %s: %w", path, err)
+			}
+		}
+
+		return nil
+	})
 }
 
 // countFiles counts files with the given extension in a directory tree.
