@@ -390,8 +390,15 @@ func main() {
 
 // getInput reads a GitHub Actions input from the environment.
 func getInput(name string) string {
-	envKey := "INPUT_" + strings.ToUpper(strings.ReplaceAll(name, "-", "_"))
-	return strings.TrimSpace(os.Getenv(envKey))
+	// Docker actions receive env vars with hyphens preserved: INPUT_SUPERMODEL-API-KEY
+	envKey := "INPUT_" + strings.ToUpper(name)
+	val := os.Getenv(envKey)
+	if val == "" {
+		// Also check with hyphens replaced by underscores (for local testing)
+		envKey = "INPUT_" + strings.ToUpper(strings.ReplaceAll(name, "-", "_"))
+		val = os.Getenv(envKey)
+	}
+	return strings.TrimSpace(val)
 }
 
 // setOutput writes a GitHub Actions output value.
