@@ -36,6 +36,9 @@
         {{if .Entity.GetInt "function_count"}}<span class="pill">{{.Entity.GetInt "function_count"}} functions</span>{{end}}
         {{if .Entity.GetInt "class_count"}}<span class="pill">{{.Entity.GetInt "class_count"}} classes</span>{{end}}
         {{if .Entity.GetInt "file_count"}}<span class="pill">{{.Entity.GetInt "file_count"}} files</span>{{end}}
+        {{if .Entity.GetString "impact_level"}}{{$il := .Entity.GetString "impact_level"}}<a href="/impact_level/{{$il | slug}}.html" class="pill {{if eq $il "Critical"}}pill-red{{else if eq $il "High"}}pill-red{{else if eq $il "Medium"}}pill-orange{{else}}pill-green{{end}}">Impact: {{$il}}</a>{{end}}
+        {{if .Entity.GetString "test_coverage"}}{{$tc := .Entity.GetString "test_coverage"}}<a href="/test_coverage/{{$tc | slug}}.html" class="pill {{if eq $tc "Tested"}}pill-green{{else}}pill-red{{end}}">{{$tc}}</a>{{end}}
+        {{if .Entity.GetString "dependency_health"}}{{$dh := .Entity.GetString "dependency_health"}}<a href="/dependency_health/{{$dh | slug}}.html" class="pill {{if eq $dh "Clean"}}pill-green{{else}}pill-orange{{end}}">{{$dh}}</a>{{end}}
       </div>
 
       {{if .Entity.GetString "summary"}}
@@ -200,6 +203,27 @@
     {{with index $sections "Source"}}
     <div class="entity-section">
       <h2>Source</h2>
+      <ul>{{range .}}<li>{{. | safeHTML}}</li>{{end}}</ul>
+    </div>
+    {{end}}
+
+    {{with index $sections "Impact Analysis"}}
+    <div class="entity-section">
+      <h2>Impact Analysis</h2>
+      <ul>{{range .}}<li>{{. | safeHTML}}</li>{{end}}</ul>
+    </div>
+    {{end}}
+
+    {{with index $sections "Test Coverage"}}
+    <div class="entity-section">
+      <h2>Test Coverage</h2>
+      <ul>{{range .}}<li>{{. | safeHTML}}</li>{{end}}</ul>
+    </div>
+    {{end}}
+
+    {{with index $sections "Circular Dependencies"}}
+    <div class="entity-section">
+      <h2>Circular Dependencies</h2>
       <ul>{{range .}}<li>{{. | safeHTML}}</li>{{end}}</ul>
     </div>
     {{end}}

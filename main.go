@@ -15,10 +15,16 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
-const apiBaseURL = "https://api.supermodeltools.com/v1/graphs/supermodel"
+const apiBase = "https://api.supermodeltools.com"
+const supermodelEndpoint = apiBase + "/v1/graphs/supermodel"
+const impactEndpoint = apiBase + "/v1/analysis/impact"
+const testCoverageEndpoint = apiBase + "/v1/analysis/test-coverage-map"
+const circularDepsEndpoint = apiBase + "/v1/analysis/circular-dependencies"
+
 const pollTimeout = 15 * time.Minute
 const defaultPollInterval = 10 * time.Second
 const maxFileSize = 10 * 1024 * 1024 // 10MB
@@ -97,6 +103,15 @@ data:
     - name: "Domain"
       header: "Domain"
       type: "unordered_list"
+    - name: "Impact Analysis"
+      header: "Impact Analysis"
+      type: "unordered_list"
+    - name: "Test Coverage"
+      header: "Test Coverage"
+      type: "unordered_list"
+    - name: "Circular Dependencies"
+      header: "Circular Dependencies"
+      type: "unordered_list"
     - name: "faqs"
       header: "FAQs"
       type: "faq"
@@ -157,6 +172,30 @@ taxonomies:
     multi_value: true
     min_entities: 1
     index_description: "Browse by tag"
+
+  - name: "test_coverage"
+    label: "Test Coverage"
+    label_singular: "Coverage"
+    field: "test_coverage"
+    multi_value: false
+    min_entities: 1
+    index_description: "Browse by test coverage status"
+
+  - name: "impact_level"
+    label: "Impact Level"
+    label_singular: "Impact Level"
+    field: "impact_level"
+    multi_value: false
+    min_entities: 1
+    index_description: "Browse by change impact level"
+
+  - name: "dependency_health"
+    label: "Dependency Health"
+    label_singular: "Dependency Health"
+    field: "dependency_health"
+    multi_value: false
+    min_entities: 1
+    index_description: "Browse by dependency health status"
 
 pagination:
   per_page: 48
@@ -299,17 +338,68 @@ func main() {
 	fmt.Printf("Archive created: %s (%.2f MB)\n", zipPath, float64(info.Size())/(1024*1024))
 	logGroupEnd()
 
-	// Step 4 & 5: Call Supermodel API and poll
-	logGroup("Calling Supermodel API")
-	graphJSON, err := callSupermodelAPI(apiKey, zipPath)
-	if err != nil {
-		fatal("API call failed: %v", err)
+	// Step 4 & 5: Call Supermodel APIs in parallel
+	logGroup("Calling Supermodel APIs")
+
+	type apiResult struct {
+		name string
+		data []byte
+		err  error
 	}
-	fmt.Printf("Graph data received (%d bytes)\n", len(graphJSON))
+
+	results := make(chan apiResult, 4)
+	var wg sync.WaitGroup
+
+	// Launch all 4 endpoints concurrently
+	for _, ep := range []struct{ name, url string }{
+		{"supermodel", supermodelEndpoint},
+		{"impact", impactEndpoint},
+		{"test-coverage", testCoverageEndpoint},
+		{"circular-deps", circularDepsEndpoint},
+	} {
+		wg.Add(1)
+		go func(name, url string) {
+			defer wg.Done()
+			fmt.Printf("Calling %s endpoint...\n", name)
+			data, err := callEndpoint(url, apiKey, zipPath)
+			results <- apiResult{name: name, data: data, err: err}
+		}(ep.name, ep.url)
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	var graphJSON []byte
+	var impactJSON []byte
+	var testCoverageJSON []byte
+	var circularDepsJSON []byte
+
+	for r := range results {
+		if r.err != nil {
+			if r.name == "supermodel" {
+				fatal("Supermodel API failed: %v", r.err)
+			}
+			fmt.Printf("::warning::%s endpoint failed: %v\n", r.name, r.err)
+			continue
+		}
+		fmt.Printf("%s: received %d bytes\n", r.name, len(r.data))
+		switch r.name {
+		case "supermodel":
+			graphJSON = r.data
+		case "impact":
+			impactJSON = r.data
+		case "test-coverage":
+			testCoverageJSON = r.data
+		case "circular-deps":
+			circularDepsJSON = r.data
+		}
+	}
 	logGroupEnd()
 
-	// Step 6: Save graph JSON
-	logGroup("Saving graph data")
+	// Step 6: Save JSON results
+	logGroup("Saving analysis data")
 	tmpDir, err := os.MkdirTemp("", "arch-docs-*")
 	if err != nil {
 		fatal("Failed to create temp dir: %v", err)
@@ -321,6 +411,22 @@ func main() {
 		fatal("Failed to write graph JSON: %v", err)
 	}
 	fmt.Printf("Graph saved to %s\n", graphPath)
+
+	if impactJSON != nil {
+		p := filepath.Join(tmpDir, "impact.json")
+		os.WriteFile(p, impactJSON, 0644)
+		fmt.Printf("Impact analysis saved to %s\n", p)
+	}
+	if testCoverageJSON != nil {
+		p := filepath.Join(tmpDir, "test-coverage.json")
+		os.WriteFile(p, testCoverageJSON, 0644)
+		fmt.Printf("Test coverage saved to %s\n", p)
+	}
+	if circularDepsJSON != nil {
+		p := filepath.Join(tmpDir, "circular-deps.json")
+		os.WriteFile(p, circularDepsJSON, 0644)
+		fmt.Printf("Circular dependencies saved to %s\n", p)
+	}
 	logGroupEnd()
 
 	// Step 7: Run graph2md
@@ -348,6 +454,14 @@ func main() {
 	entityCount := countFiles(contentDir, ".md")
 	fmt.Printf("Generated %d markdown files\n", entityCount)
 	logGroupEnd()
+
+	// Step 7b: Enrich markdown with analysis data
+	if impactJSON != nil || testCoverageJSON != nil || circularDepsJSON != nil {
+		logGroup("Enriching entities with analysis data")
+		enriched := enrichMarkdown(contentDir, impactJSON, testCoverageJSON, circularDepsJSON)
+		fmt.Printf("Enriched %d entity files with analysis data\n", enriched)
+		logGroupEnd()
+	}
 
 	// Step 8: Generate pssg.yaml and run pssg build
 	logGroup("Building static site")
@@ -565,12 +679,12 @@ func createRepoZip(workspaceDir string) (string, error) {
 	return tmpFile.Name(), nil
 }
 
-// callSupermodelAPI sends the zip to the Supermodel API and polls for completion.
-func callSupermodelAPI(apiKey, zipPath string) ([]byte, error) {
+// callEndpoint sends the zip to a Supermodel API endpoint and polls for completion.
+func callEndpoint(endpointURL, apiKey, zipPath string) ([]byte, error) {
 	idempotencyKey := generateUUID()
 
 	// Initial POST
-	respBody, resp, err := postWithZip(apiKey, zipPath, idempotencyKey)
+	respBody, resp, err := postWithZip(endpointURL, apiKey, zipPath, idempotencyKey)
 	if err != nil {
 		return nil, fmt.Errorf("initial request: %w", err)
 	}
@@ -595,7 +709,7 @@ func callSupermodelAPI(apiKey, zipPath string) ([]byte, error) {
 		fmt.Printf("Status: %s (job: %s), polling in %s...\n", apiResp.Status, apiResp.JobID, interval)
 		time.Sleep(interval)
 
-		respBody, resp, err = postWithZip(apiKey, zipPath, idempotencyKey)
+		respBody, resp, err = postWithZip(endpointURL, apiKey, zipPath, idempotencyKey)
 		if err != nil {
 			fmt.Printf("::warning::Poll request failed: %v, retrying...\n", err)
 			continue
@@ -618,13 +732,13 @@ func callSupermodelAPI(apiKey, zipPath string) ([]byte, error) {
 }
 
 // postWithZip sends a multipart POST request with the zip file.
-func postWithZip(apiKey, zipPath, idempotencyKey string) ([]byte, *http.Response, error) {
+func postWithZip(endpointURL, apiKey, zipPath, idempotencyKey string) ([]byte, *http.Response, error) {
 	body, contentType, err := createMultipartBody(zipPath)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest("POST", apiBaseURL, body)
+	req, err := http.NewRequest("POST", endpointURL, body)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -796,6 +910,290 @@ func rewritePathPrefix(dir, prefix string) error {
 
 		return nil
 	})
+}
+
+// --- Analysis response types ---
+
+type ImpactResponse struct {
+	Impacts []ImpactEntry `json:"impacts"`
+}
+
+type ImpactEntry struct {
+	Target struct {
+		File string `json:"file"`
+		Name string `json:"name"`
+		Type string `json:"type"`
+	} `json:"target"`
+	BlastRadius struct {
+		DirectDependents     int     `json:"directDependents"`
+		TransitiveDependents int     `json:"transitiveDependents"`
+		AffectedFiles        int     `json:"affectedFiles"`
+		RiskScore            float64 `json:"riskScore"`
+	} `json:"blastRadius"`
+	AffectedFunctions []struct {
+		File         string `json:"file"`
+		Name         string `json:"name"`
+		Distance     int    `json:"distance"`
+		Relationship string `json:"relationship"`
+	} `json:"affectedFunctions"`
+	EntryPointsAffected []struct {
+		File string `json:"file"`
+		Name string `json:"name"`
+	} `json:"entryPointsAffected"`
+}
+
+type TestCoverageResponse struct {
+	Metadata struct {
+		CoveragePercentage float64 `json:"coveragePercentage"`
+		TestedFunctions    int     `json:"testedFunctions"`
+		UntestedFunctions  int     `json:"untestedFunctions"`
+	} `json:"metadata"`
+	UntestedFunctions []struct {
+		File       string `json:"file"`
+		Name       string `json:"name"`
+		Line       int    `json:"line"`
+		Type       string `json:"type"`
+		Confidence string `json:"confidence"`
+		Reason     string `json:"reason"`
+	} `json:"untestedFunctions"`
+	TestedFunctions []struct {
+		File      string   `json:"file"`
+		Name      string   `json:"name"`
+		Line      int      `json:"line"`
+		TestFiles []string `json:"testFiles"`
+	} `json:"testedFunctions"`
+	CoverageByFile []struct {
+		File               string  `json:"file"`
+		CoveragePercentage float64 `json:"coveragePercentage"`
+	} `json:"coverageByFile"`
+}
+
+type CircularDepsResponse struct {
+	Cycles []struct {
+		ID    string   `json:"id"`
+		Files []string `json:"files"`
+		Edges []struct {
+			Source          string   `json:"source"`
+			Target          string   `json:"target"`
+			ImportedSymbols []string `json:"importedSymbols"`
+		} `json:"edges"`
+		Severity          string `json:"severity"`
+		BreakingSuggestion string `json:"breakingSuggestion"`
+	} `json:"cycles"`
+	Summary struct {
+		TotalCycles       int `json:"totalCycles"`
+		HighSeverityCount int `json:"highSeverityCount"`
+	} `json:"summary"`
+}
+
+// enrichMarkdown reads analysis JSON and injects data into generated markdown frontmatter.
+func enrichMarkdown(contentDir string, impactJSON, testCoverageJSON, circularDepsJSON []byte) int {
+	// Parse analysis data
+	impactByFile := map[string]ImpactEntry{}
+	if impactJSON != nil {
+		var impact ImpactResponse
+		if err := json.Unmarshal(impactJSON, &impact); err == nil {
+			for _, entry := range impact.Impacts {
+				impactByFile[entry.Target.File] = entry
+			}
+		}
+	}
+
+	testedFuncs := map[string][]string{}   // "file:name" -> test files
+	untestedFuncs := map[string]string{}    // "file:name" -> reason
+	coverageByFile := map[string]float64{}
+	if testCoverageJSON != nil {
+		var coverage TestCoverageResponse
+		if err := json.Unmarshal(testCoverageJSON, &coverage); err == nil {
+			for _, f := range coverage.TestedFunctions {
+				key := f.File + ":" + f.Name
+				testedFuncs[key] = f.TestFiles
+			}
+			for _, f := range coverage.UntestedFunctions {
+				key := f.File + ":" + f.Name
+				untestedFuncs[key] = f.Reason
+			}
+			for _, f := range coverage.CoverageByFile {
+				coverageByFile[f.File] = f.CoveragePercentage
+			}
+		}
+	}
+
+	filesInCycles := map[string][]string{} // file -> cycle IDs
+	cycleDetails := map[string]string{}    // cycle ID -> severity
+	cycleSuggestions := map[string]string{} // cycle ID -> suggestion
+	if circularDepsJSON != nil {
+		var circular CircularDepsResponse
+		if err := json.Unmarshal(circularDepsJSON, &circular); err == nil {
+			for _, cycle := range circular.Cycles {
+				cycleDetails[cycle.ID] = cycle.Severity
+				cycleSuggestions[cycle.ID] = cycle.BreakingSuggestion
+				for _, f := range cycle.Files {
+					filesInCycles[f] = append(filesInCycles[f], cycle.ID)
+				}
+			}
+		}
+	}
+
+	enriched := 0
+	filepath.Walk(contentDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".md") {
+			return nil
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+
+		content := string(data)
+
+		// Find frontmatter boundaries
+		if !strings.HasPrefix(content, "---\n") {
+			return nil
+		}
+		endIdx := strings.Index(content[4:], "\n---\n")
+		if endIdx < 0 {
+			return nil
+		}
+		endIdx += 4
+
+		frontmatter := content[:endIdx]
+		body := content[endIdx+5:] // skip "\n---\n"
+
+		// Extract file_path from frontmatter
+		filePath := extractFrontmatterValue(frontmatter, "file_path")
+		funcName := extractFrontmatterValue(frontmatter, "function_name")
+		nodeType := extractFrontmatterValue(frontmatter, "node_type")
+
+		var additions []string
+		var bodySections []string
+		modified := false
+
+		// Impact analysis enrichment
+		if filePath != "" {
+			if impact, ok := impactByFile[filePath]; ok {
+				level := "Low"
+				if impact.BlastRadius.RiskScore >= 30 {
+					level = "High"
+				} else if impact.BlastRadius.RiskScore >= 10 {
+					level = "Medium"
+				}
+				if impact.BlastRadius.RiskScore > 100 {
+					level = "Critical"
+				}
+				additions = append(additions,
+					fmt.Sprintf("impact_level: \"%s\"", level),
+					fmt.Sprintf("impact_risk_score: %.1f", impact.BlastRadius.RiskScore),
+					fmt.Sprintf("impact_direct_dependents: %d", impact.BlastRadius.DirectDependents),
+					fmt.Sprintf("impact_transitive_dependents: %d", impact.BlastRadius.TransitiveDependents),
+					fmt.Sprintf("impact_affected_files: %d", impact.BlastRadius.AffectedFiles),
+				)
+
+				var impactLines []string
+				impactLines = append(impactLines, fmt.Sprintf("- Risk Score: %.1f (%s)", impact.BlastRadius.RiskScore, level))
+				impactLines = append(impactLines, fmt.Sprintf("- Direct Dependents: %d", impact.BlastRadius.DirectDependents))
+				impactLines = append(impactLines, fmt.Sprintf("- Transitive Dependents: %d", impact.BlastRadius.TransitiveDependents))
+				impactLines = append(impactLines, fmt.Sprintf("- Affected Files: %d", impact.BlastRadius.AffectedFiles))
+				if len(impact.EntryPointsAffected) > 0 {
+					impactLines = append(impactLines, fmt.Sprintf("- Entry Points Affected: %d", len(impact.EntryPointsAffected)))
+					for _, ep := range impact.EntryPointsAffected {
+						if len(impactLines) > 10 {
+							break
+						}
+						impactLines = append(impactLines, fmt.Sprintf("  - %s (%s)", ep.Name, ep.File))
+					}
+				}
+				bodySections = append(bodySections, "## Impact Analysis\n\n"+strings.Join(impactLines, "\n"))
+				modified = true
+			}
+		}
+
+		// Test coverage enrichment
+		if funcName != "" && filePath != "" && (nodeType == "Function" || nodeType == "Method") {
+			key := filePath + ":" + funcName
+			if testFiles, ok := testedFuncs[key]; ok {
+				additions = append(additions, `test_coverage: "Tested"`)
+				var lines []string
+				lines = append(lines, fmt.Sprintf("- Status: Tested by %d test file(s)", len(testFiles)))
+				for _, tf := range testFiles {
+					lines = append(lines, fmt.Sprintf("  - %s", tf))
+				}
+				bodySections = append(bodySections, "## Test Coverage\n\n"+strings.Join(lines, "\n"))
+				modified = true
+			} else if reason, ok := untestedFuncs[key]; ok {
+				additions = append(additions, `test_coverage: "Untested"`)
+				bodySections = append(bodySections, "## Test Coverage\n\n- Status: Untested\n- Reason: "+reason)
+				modified = true
+			}
+		}
+		if nodeType == "File" && filePath != "" {
+			if cov, ok := coverageByFile[filePath]; ok {
+				covStatus := "Tested"
+				if cov == 0 {
+					covStatus = "Untested"
+				}
+				additions = append(additions,
+					fmt.Sprintf("test_coverage: \"%s\"", covStatus),
+					fmt.Sprintf("test_coverage_pct: %.1f", cov),
+				)
+				bodySections = append(bodySections, fmt.Sprintf("## Test Coverage\n\n- File Coverage: %.1f%%", cov))
+				modified = true
+			}
+		}
+
+		// Circular dependency enrichment
+		if filePath != "" {
+			if cycleIDs, ok := filesInCycles[filePath]; ok {
+				additions = append(additions, `dependency_health: "In Cycle"`)
+				var lines []string
+				for _, id := range cycleIDs {
+					sev := cycleDetails[id]
+					lines = append(lines, fmt.Sprintf("- %s (severity: %s)", id, sev))
+					if suggestion := cycleSuggestions[id]; suggestion != "" {
+						lines = append(lines, fmt.Sprintf("  - Suggestion: %s", suggestion))
+					}
+				}
+				bodySections = append(bodySections, "## Circular Dependencies\n\n"+strings.Join(lines, "\n"))
+				modified = true
+			} else if nodeType == "File" {
+				additions = append(additions, `dependency_health: "Clean"`)
+				modified = true
+			}
+		}
+
+		if !modified {
+			return nil
+		}
+
+		// Rebuild file: insert new frontmatter fields before closing ---
+		newFrontmatter := frontmatter + "\n" + strings.Join(additions, "\n")
+		newBody := body
+		if len(bodySections) > 0 {
+			newBody = strings.Join(bodySections, "\n\n") + "\n\n" + body
+		}
+
+		newContent := newFrontmatter + "\n---\n" + newBody
+		os.WriteFile(path, []byte(newContent), info.Mode())
+		enriched++
+		return nil
+	})
+
+	return enriched
+}
+
+// extractFrontmatterValue extracts a simple string value from YAML frontmatter.
+func extractFrontmatterValue(frontmatter, key string) string {
+	for _, line := range strings.Split(frontmatter, "\n") {
+		line = strings.TrimSpace(line)
+		prefix := key + ":"
+		if strings.HasPrefix(line, prefix) {
+			val := strings.TrimSpace(line[len(prefix):])
+			val = strings.Trim(val, `"'`)
+			return val
+		}
+	}
+	return ""
 }
 
 // countFiles counts files with the given extension in a directory tree.

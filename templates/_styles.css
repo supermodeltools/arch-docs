@@ -182,6 +182,7 @@ a.pill:hover {
 .pill-green { border-color: var(--green); color: var(--green); }
 .pill-orange { border-color: var(--orange); color: var(--orange); }
 .pill-blue { border-color: var(--blue); color: var(--blue); }
+.pill-red { border-color: var(--red); color: var(--red); }
 
 /* Sections */
 .entity-section {
