@@ -184,6 +184,17 @@ a.pill:hover {
 .pill-blue { border-color: var(--blue); color: var(--blue); }
 .pill-red { border-color: var(--red); color: var(--red); }
 
+/* Coverage bars */
+.cov-row { display: flex; align-items: center; gap: 8px; }
+.cov-bar { width: 120px; height: 10px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+.cov-fill { height: 100%; border-radius: 3px; }
+.cov-pct { width: 44px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; color: var(--text); }
+.cov-label { color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cov-ratio { color: var(--text-muted); opacity: 0.6; flex-shrink: 0; }
+.cov-func { display: flex; align-items: center; gap: 6px; }
+.cov-check { color: var(--green); }
+.cov-x { color: var(--red); }
+
 /* Sections */
 .entity-section {
   margin-bottom: 32px;

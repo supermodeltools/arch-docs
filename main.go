@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -999,19 +1000,28 @@ func enrichMarkdown(contentDir string, impactJSON, testCoverageJSON, circularDep
 		}
 	}
 
-	testedFuncs := map[string][]string{}   // "file:name" -> test files
-	untestedFuncs := map[string]string{}    // "file:name" -> reason
+	testedFuncs := map[string][]string{}      // "file:name" -> test files
+	untestedFuncs := map[string]string{}       // "file:name" -> reason
 	coverageByFile := map[string]float64{}
+	testedCountByFile := map[string]int{}
+	totalCountByFile := map[string]int{}
+	testedNamesInFile := map[string][]string{}
+	untestedNamesInFile := map[string][]string{}
 	if testCoverageJSON != nil {
 		var coverage TestCoverageResponse
 		if err := json.Unmarshal(testCoverageJSON, &coverage); err == nil {
 			for _, f := range coverage.TestedFunctions {
 				key := f.File + ":" + f.Name
 				testedFuncs[key] = f.TestFiles
+				testedCountByFile[f.File]++
+				totalCountByFile[f.File]++
+				testedNamesInFile[f.File] = append(testedNamesInFile[f.File], f.Name)
 			}
 			for _, f := range coverage.UntestedFunctions {
 				key := f.File + ":" + f.Name
 				untestedFuncs[key] = f.Reason
+				totalCountByFile[f.File]++
+				untestedNamesInFile[f.File] = append(untestedNamesInFile[f.File], f.Name)
 			}
 			for _, f := range coverage.CoverageByFile {
 				coverageByFile[f.File] = f.CoveragePercentage
@@ -1133,11 +1143,70 @@ func enrichMarkdown(contentDir string, impactJSON, testCoverageJSON, circularDep
 				if cov == 0 {
 					covStatus = "Untested"
 				}
+				tc := testedCountByFile[filePath]
+				tot := totalCountByFile[filePath]
 				additions = append(additions,
 					fmt.Sprintf("test_coverage: \"%s\"", covStatus),
 					fmt.Sprintf("test_coverage_pct: %.1f", cov),
 				)
-				bodySections = append(bodySections, fmt.Sprintf("## Test Coverage\n\n- File Coverage: %.1f%%", cov))
+				var covLines []string
+				covLines = append(covLines, coverageBarHTML(filePath, cov, tc, tot))
+				for _, name := range testedNamesInFile[filePath] {
+					covLines = append(covLines, fmt.Sprintf(`<span class="cov-func"><span class="cov-check">✓</span> %s</span>`, name))
+				}
+				for _, name := range untestedNamesInFile[filePath] {
+					covLines = append(covLines, fmt.Sprintf(`<span class="cov-func"><span class="cov-x">✗</span> %s</span>`, name))
+				}
+				bodySections = append(bodySections, "## Test Coverage\n\n"+joinCoverageItems(covLines))
+				modified = true
+			}
+		}
+
+		// Directory/Module/Package entities: show child file coverage bars
+		if (nodeType == "Directory" || nodeType == "Module" || nodeType == "Package" || nodeType == "Namespace") && filePath != "" && len(coverageByFile) > 0 {
+			prefix := filePath
+			if !strings.HasSuffix(prefix, "/") {
+				prefix += "/"
+			}
+			type fileCov struct {
+				file   string
+				pct    float64
+				tested int
+				total  int
+			}
+			var childFiles []fileCov
+			for f, pct := range coverageByFile {
+				if strings.HasPrefix(f, prefix) {
+					childFiles = append(childFiles, fileCov{f, pct, testedCountByFile[f], totalCountByFile[f]})
+				}
+			}
+			if len(childFiles) > 0 {
+				sort.Slice(childFiles, func(i, j int) bool {
+					return childFiles[i].pct < childFiles[j].pct
+				})
+				var covLines []string
+				for _, cf := range childFiles {
+					covLines = append(covLines, coverageBarHTML(cf.file, cf.pct, cf.tested, cf.total))
+				}
+				bodySections = append(bodySections, "## Test Coverage\n\n"+joinCoverageItems(covLines))
+				totalTested := 0
+				totalAll := 0
+				for _, cf := range childFiles {
+					totalTested += cf.tested
+					totalAll += cf.total
+				}
+				overallPct := 0.0
+				if totalAll > 0 {
+					overallPct = float64(totalTested) / float64(totalAll) * 100
+				}
+				covStatus := "Tested"
+				if overallPct == 0 {
+					covStatus = "Untested"
+				}
+				additions = append(additions,
+					fmt.Sprintf("test_coverage: \"%s\"", covStatus),
+					fmt.Sprintf("test_coverage_pct: %.1f", overallPct),
+				)
 				modified = true
 			}
 		}
@@ -1194,6 +1263,34 @@ func extractFrontmatterValue(frontmatter, key string) string {
 		}
 	}
 	return ""
+}
+
+// coverageBarHTML generates an HTML coverage bar row.
+func coverageBarHTML(label string, pct float64, tested, total int) string {
+	color := "var(--red)"
+	if pct >= 80 {
+		color = "var(--green)"
+	} else if pct > 0 {
+		color = "var(--orange)"
+	}
+	return fmt.Sprintf(
+		`<div class="cov-row">`+
+			`<div class="cov-bar"><div class="cov-fill" style="width:%.1f%%;background:%s"></div></div>`+
+			`<span class="cov-pct">%.1f%%</span>`+
+			`<span class="cov-label">%s</span>`+
+			`<span class="cov-ratio">(%d/%d)</span>`+
+			`</div>`,
+		pct, color, pct, label, tested, total,
+	)
+}
+
+// joinCoverageItems wraps HTML strings as markdown list items.
+func joinCoverageItems(items []string) string {
+	var lines []string
+	for _, item := range items {
+		lines = append(lines, "- "+item)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // countFiles counts files with the given extension in a directory tree.
