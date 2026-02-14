@@ -5,7 +5,7 @@ COPY go.mod ./
 COPY main.go ./
 RUN CGO_ENABLED=0 go build -o /arch-docs main.go
 RUN CGO_ENABLED=0 go install github.com/supermodeltools/graph2md@latest
-RUN CGO_ENABLED=0 GONOSUMCHECK=* GOFLAGS=-mod=mod go install github.com/greynewell/pssg/cmd/pssg@v0.0.0-20260210222139-68b5e09320c4
+RUN CGO_ENABLED=0 go install github.com/greynewell/pssg/cmd/pssg@v0.3.0
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates
