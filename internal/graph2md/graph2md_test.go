@@ -56,13 +56,18 @@ func makeRel(id, relType, startNode, endNode string) Relationship {
 func domainRenderCtx(center Node, allNodes []Node, outEdges, inEdges []domainEdge) *renderContext {
 	nodeLookup := make(map[string]*Node)
 	slugLookup := make(map[string]string)
+	domainNodeByName := make(map[string]string)
 	for i := range allNodes {
 		n := &allNodes[i]
 		nodeLookup[n.ID] = n
 		slugLookup[n.ID] = toSlug(getStr(n.Properties, "name"))
+		if hasLabel(n, "Domain") {
+			domainNodeByName[getStr(n.Properties, "name")] = n.ID
+		}
 	}
 	nodeLookup[center.ID] = &center
 	slugLookup[center.ID] = toSlug(getStr(center.Properties, "name"))
+	domainNodeByName[getStr(center.Properties, "name")] = center.ID
 
 	return &renderContext{
 		node:                &center,
@@ -90,7 +95,7 @@ func domainRenderCtx(center Node, allNodes []Node, outEdges, inEdges []domainEdg
 		fileOfFunc:          make(map[string]string),
 		fileOfClass:         make(map[string]string),
 		fileOfType:          make(map[string]string),
-		domainNodeByName:    make(map[string]string),
+		domainNodeByName:    domainNodeByName,
 		subdomainNodeByName: make(map[string]string),
 		domainSubdomains:    make(map[string][]string),
 		subdomainFuncs:      make(map[string][]string),
@@ -415,8 +420,11 @@ func extractGraphDataJSON(t *testing.T, frontmatter string) string {
 	start := idx + len(prefix)
 	// Find the closing quote — the value is a Go %q-escaped string
 	rest := frontmatter[start:]
-	// Unescape the Go-quoted string
-	full := `"` + rest[:strings.Index(rest, "\"\n")] + `"`
+	endIdx := strings.Index(rest, "\"\n")
+	if endIdx == -1 {
+		t.Fatalf("could not find closing quote in graph_data: %s", rest)
+	}
+	full := `"` + rest[:endIdx] + `"`
 	var unquoted string
 	if err := json.Unmarshal([]byte(full), &unquoted); err != nil {
 		t.Fatalf("failed to unquote graph_data: %v\nraw: %s", err, full)
