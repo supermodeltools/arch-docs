@@ -217,7 +217,7 @@ func Run(inputFiles, outputDir, repoName, repoURL string) error {
 			// Capture domain-to-domain relationships (any type connecting two Domain nodes)
 			startNode := nodeLookup[rel.StartNode]
 			endNode := nodeLookup[rel.EndNode]
-			if startNode != nil && endNode != nil && hasLabel(startNode, "Domain") && hasLabel(endNode, "Domain") {
+			if startNode != nil && endNode != nil && hasLabel(startNode, "Domain") && hasLabel(endNode, "Domain") && rel.StartNode != rel.EndNode {
 				domainRelatesOut[rel.StartNode] = append(domainRelatesOut[rel.StartNode], domainEdge{nodeID: rel.EndNode, relType: rel.Type})
 				domainRelatesIn[rel.EndNode] = append(domainRelatesIn[rel.EndNode], domainEdge{nodeID: rel.StartNode, relType: rel.Type})
 			}
