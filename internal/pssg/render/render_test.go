@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"html/template"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -155,6 +156,63 @@ func TestTemplateHTMLWouldDoubleEncode(t *testing.T) {
 
 	// If it somehow parses as an object, that's unexpected for template.HTML in script context
 	t.Log("Warning: template.HTML in script tag parsed as object — behavior may have changed in this Go version")
+}
+
+// TestRenderJSNotHTMLEscaped verifies that RenderJS() returns raw JS source
+// without HTML-escaping. This is a regression test for the html/template
+// migration bug where Execute() would escape < to &lt; in JS code.
+func TestRenderJSNotHTMLEscaped(t *testing.T) {
+	jsSource := `for (var i = 0; i < items.length; i++) { if (i < max) { process(i); } }`
+
+	tmpl := template.New("").Funcs(BuildFuncMap())
+	_, err := tmpl.New("_main.js").Parse(jsSource)
+	if err != nil {
+		t.Fatalf("failed to parse JS template: %v", err)
+	}
+
+	engine := &Engine{tmpl: tmpl}
+	result, err := engine.RenderJS()
+	if err != nil {
+		t.Fatalf("RenderJS() error: %v", err)
+	}
+
+	if strings.Contains(result, "&lt;") {
+		t.Fatalf("RenderJS() HTML-escaped '<' to '&lt;': %s", result)
+	}
+	if strings.Contains(result, "&gt;") {
+		t.Fatalf("RenderJS() HTML-escaped '>' to '&gt;': %s", result)
+	}
+	if strings.Contains(result, "&amp;") {
+		t.Fatalf("RenderJS() HTML-escaped '&' to '&amp;': %s", result)
+	}
+	if !strings.Contains(result, "i < items.length") {
+		t.Fatalf("RenderJS() did not preserve '<' in JS code: %s", result)
+	}
+}
+
+// TestRenderCSSNotHTMLEscaped verifies that RenderCSS() returns raw CSS source
+// without HTML-escaping.
+func TestRenderCSSNotHTMLEscaped(t *testing.T) {
+	cssSource := `.container > .child { color: red; } /* a > b */`
+
+	tmpl := template.New("").Funcs(BuildFuncMap())
+	_, err := tmpl.New("_styles.css").Parse(cssSource)
+	if err != nil {
+		t.Fatalf("failed to parse CSS template: %v", err)
+	}
+
+	engine := &Engine{tmpl: tmpl}
+	result, err := engine.RenderCSS()
+	if err != nil {
+		t.Fatalf("RenderCSS() error: %v", err)
+	}
+
+	if strings.Contains(result, "&gt;") {
+		t.Fatalf("RenderCSS() HTML-escaped '>' to '&gt;': %s", result)
+	}
+	if !strings.Contains(result, "> .child") {
+		t.Fatalf("RenderCSS() did not preserve '>' in CSS code: %s", result)
+	}
 }
 
 // TestLengthWithVariousTypes verifies the reflect-based length function
