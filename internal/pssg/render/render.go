@@ -245,29 +245,23 @@ func (e *Engine) render(name string, data interface{}) (string, error) {
 }
 
 // RenderCSS reads and returns the CSS template content.
+// Uses Tree.Root.String() to avoid html/template escaping in CSS code.
 func (e *Engine) RenderCSS() (string, error) {
 	t := e.tmpl.Lookup("_styles.css")
 	if t == nil {
 		return "", nil
 	}
-	var buf bytes.Buffer
-	if err := t.Execute(&buf, nil); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
+	return t.Tree.Root.String(), nil
 }
 
 // RenderJS reads and returns the JS template content.
+// Uses Tree.Root.String() to avoid html/template escaping < to &lt; in JS code.
 func (e *Engine) RenderJS() (string, error) {
 	t := e.tmpl.Lookup("_main.js")
 	if t == nil {
 		return "", nil
 	}
-	var buf bytes.Buffer
-	if err := t.Execute(&buf, nil); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
+	return t.Tree.Root.String(), nil
 }
 
 // GenerateCookModePrompt builds a cook-with-AI prompt for a recipe.
