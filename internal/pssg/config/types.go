@@ -42,6 +42,7 @@ type PathsConfig struct {
 	Output    string `yaml:"output"`
 	Cache     string `yaml:"cache"`
 	Static    string `yaml:"static"`
+	SourceDir string `yaml:"source_dir"`
 }
 
 type DataConfig struct {

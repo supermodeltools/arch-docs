@@ -394,6 +394,102 @@ func (b *Builder) renderEntityPage(
 	title := e.GetString("title")
 	description := e.GetString("description")
 
+	// Entity profile chart data (compact format for JS)
+	profileData := map[string]interface{}{}
+	if lc := e.GetInt("line_count"); lc > 0 {
+		profileData["lc"] = lc
+	}
+	if co := e.GetInt("call_count"); co > 0 {
+		profileData["co"] = co
+	}
+	if cb := e.GetInt("called_by_count"); cb > 0 {
+		profileData["cb"] = cb
+	}
+	if ic := e.GetInt("import_count"); ic > 0 {
+		profileData["ic"] = ic
+	}
+	if ib := e.GetInt("imported_by_count"); ib > 0 {
+		profileData["ib"] = ib
+	}
+	if fn := e.GetInt("function_count"); fn > 0 {
+		profileData["fn"] = fn
+	}
+	if cl := e.GetInt("class_count"); cl > 0 {
+		profileData["cl"] = cl
+	}
+	if tc := e.GetInt("type_count"); tc > 0 {
+		profileData["tc"] = tc
+	}
+	if fc := e.GetInt("file_count"); fc > 0 {
+		profileData["fc"] = fc
+	}
+	if sl := e.GetInt("start_line"); sl > 0 {
+		profileData["sl"] = sl
+	}
+	if el := e.GetInt("end_line"); el > 0 {
+		profileData["el"] = el
+	}
+	// Edge type breakdown
+	edgeTypes := map[string]int{}
+	if v := e.GetInt("import_count"); v > 0 {
+		edgeTypes["imports"] = v
+	}
+	if v := e.GetInt("imported_by_count"); v > 0 {
+		edgeTypes["imports"] += v
+	}
+	if v := e.GetInt("call_count"); v > 0 {
+		edgeTypes["calls"] = v
+	}
+	if v := e.GetInt("called_by_count"); v > 0 {
+		edgeTypes["calls"] += v
+	}
+	if v := e.GetInt("function_count"); v > 0 {
+		edgeTypes["defines"] += v
+	}
+	if v := e.GetInt("class_count"); v > 0 {
+		edgeTypes["defines"] += v
+	}
+	if v := e.GetInt("type_count"); v > 0 {
+		edgeTypes["defines"] += v
+	}
+	if len(edgeTypes) > 0 {
+		profileData["et"] = edgeTypes
+	}
+	var entityChartJSON []byte
+	if len(profileData) > 0 {
+		entityChartJSON, _ = json.Marshal(profileData)
+	}
+
+	// Source code (read from workspace if available)
+	var sourceCode, sourceLang string
+	if filePath := e.GetString("file_path"); filePath != "" {
+		if sl := e.GetInt("start_line"); sl > 0 {
+			if el := e.GetInt("end_line"); el > 0 {
+				sourceDir := b.cfg.Paths.SourceDir
+				if sourceDir != "" {
+					fullPath := filepath.Join(sourceDir, filePath)
+					if data, err := os.ReadFile(fullPath); err == nil {
+						lines := strings.Split(string(data), "\n")
+						if sl <= len(lines) && el <= len(lines) {
+							sourceCode = strings.Join(lines[sl-1:el], "\n")
+						}
+					}
+				}
+			}
+		}
+		sourceLang = e.GetString("language")
+		if sourceLang == "" {
+			ext := filepath.Ext(filePath)
+			langMap := map[string]string{
+				".js": "javascript", ".ts": "typescript", ".tsx": "typescript",
+				".py": "python", ".go": "go", ".rs": "rust", ".java": "java",
+				".rb": "ruby", ".php": "php", ".c": "c", ".cpp": "cpp",
+				".cs": "csharp", ".swift": "swift", ".kt": "kotlin",
+			}
+			sourceLang = langMap[ext]
+		}
+	}
+
 	ctx := render.EntityPageContext{
 		Site:           b.cfg.Site,
 		Entity:         e,
@@ -410,6 +506,9 @@ func (b *Builder) renderEntityPage(
 		AllTaxonomies:  taxonomies,
 		ValidSlugs:     validSlugs,
 		Contributors:   contributors,
+		ChartData:      template.JS(entityChartJSON),
+		SourceCode:     sourceCode,
+		SourceLang:     sourceLang,
 		CTA: b.cfg.Extra.CTA,
 		OG: render.OGMeta{
 			Title:       title + " \u2014 " + b.cfg.Site.Name,
@@ -551,7 +650,7 @@ func (b *Builder) renderTaxonomyPages(
 					Type:        "article",
 					SiteName:    b.cfg.Site.Name,
 				},
-				ChartData: template.HTML(hubChartJSON),
+				ChartData: template.JS(hubChartJSON),
 				CTA:       b.cfg.Extra.CTA,
 			}
 
@@ -650,7 +749,7 @@ func (b *Builder) renderTaxonomyPages(
 			Type:        "article",
 			SiteName:    b.cfg.Site.Name,
 		},
-		ChartData: template.HTML(taxChartJSON),
+		ChartData: template.JS(taxChartJSON),
 		CTA:       b.cfg.Extra.CTA,
 	}
 
@@ -724,7 +823,7 @@ func (b *Builder) renderTaxonomyPages(
 					Type:        "article",
 					SiteName:    b.cfg.Site.Name,
 				},
-				ChartData: template.HTML(letterChartJSON),
+				ChartData: template.JS(letterChartJSON),
 				CTA:       b.cfg.Extra.CTA,
 			}
 
@@ -845,9 +944,9 @@ func (b *Builder) renderAllEntitiesPages(
 		jsonLD := schema.MarshalSchemas(collectionSchema, breadcrumbSchema)
 
 		// Only include chart data on page 1
-		var pageChartData template.HTML
+		var pageChartData template.JS
 		if page == 1 {
-			pageChartData = template.HTML(chartJSON)
+			pageChartData = template.JS(chartJSON)
 		}
 
 		ctx := render.AllEntitiesPageContext{
@@ -911,14 +1010,11 @@ func (b *Builder) renderHomepage(
 	}
 	imageURL := shareImageURL(b.cfg.Site.BaseURL, "homepage.svg")
 
-	// Chart data: treemap of taxonomies -> entries
-	type chartEntry struct {
+	// Chart data: treemap of taxonomies
+	type chartTax struct {
 		Name  string `json:"name"`
 		Count int    `json:"count"`
-	}
-	type chartTax struct {
-		Label      string       `json:"label"`
-		TopEntries []chartEntry `json:"topEntries"`
+		Slug  string `json:"slug"`
 	}
 	type homepageChart struct {
 		Taxonomies    []chartTax `json:"taxonomies"`
@@ -926,14 +1022,99 @@ func (b *Builder) renderHomepage(
 	}
 	var chartTaxonomies []chartTax
 	for _, tax := range taxonomies {
-		top := taxonomy.TopEntries(tax.Entries, 10)
-		var entries []chartEntry
-		for _, e := range top {
-			entries = append(entries, chartEntry{Name: e.Name, Count: len(e.Entities)})
+		totalCount := 0
+		for _, entry := range tax.Entries {
+			totalCount += len(entry.Entities)
 		}
-		chartTaxonomies = append(chartTaxonomies, chartTax{Label: tax.Label, TopEntries: entries})
+		chartTaxonomies = append(chartTaxonomies, chartTax{
+			Name:  tax.Label,
+			Count: totalCount,
+			Slug:  tax.Name,
+		})
 	}
 	chartJSON, _ := json.Marshal(homepageChart{Taxonomies: chartTaxonomies, TotalEntities: len(entities)})
+
+	// Architecture overview: domain/subdomain force graph
+	type archNode struct {
+		ID    string `json:"id"`
+		Name  string `json:"name"`
+		Type  string `json:"type"`
+		Count int    `json:"count"`
+		Slug  string `json:"slug,omitempty"`
+	}
+	type archLink struct {
+		Source string `json:"source"`
+		Target string `json:"target"`
+	}
+	type archOverview struct {
+		Nodes []archNode `json:"nodes"`
+		Links []archLink `json:"links"`
+	}
+
+	var archNodes []archNode
+	var archLinks []archLink
+
+	// Root node is the repo/site
+	rootID := "__root__"
+	archNodes = append(archNodes, archNode{ID: rootID, Name: b.cfg.Site.Name, Type: "root", Count: len(entities)})
+
+	// Find subdomain -> domain parent relationships
+	subdomainParent := make(map[string]string) // subdomain name -> domain name
+	for _, tax := range taxonomies {
+		if tax.Name == "subdomain" {
+			for _, entry := range tax.Entries {
+				parentDomain := ""
+				if len(entry.Entities) > 0 {
+					parentDomain = entry.Entities[0].GetString("domain")
+				}
+				subdomainParent[entry.Name] = parentDomain
+			}
+		}
+	}
+
+	// Add domain nodes
+	for _, tax := range taxonomies {
+		if tax.Name == "domain" {
+			for _, entry := range tax.Entries {
+				nodeID := "domain:" + entry.Slug
+				archNodes = append(archNodes, archNode{
+					ID:    nodeID,
+					Name:  entry.Name,
+					Type:  "domain",
+					Count: len(entry.Entities),
+					Slug:  "domain/" + entry.Slug,
+				})
+				archLinks = append(archLinks, archLink{Source: rootID, Target: nodeID})
+			}
+		}
+	}
+	// Add subdomain nodes
+	for _, tax := range taxonomies {
+		if tax.Name == "subdomain" {
+			for _, entry := range tax.Entries {
+				nodeID := "subdomain:" + entry.Slug
+				archNodes = append(archNodes, archNode{
+					ID:    nodeID,
+					Name:  entry.Name,
+					Type:  "subdomain",
+					Count: len(entry.Entities),
+					Slug:  "subdomain/" + entry.Slug,
+				})
+				parentDomain := subdomainParent[entry.Name]
+				if parentDomain != "" {
+					parentSlug := entity.ToSlug(parentDomain)
+					archLinks = append(archLinks, archLink{Source: "domain:" + parentSlug, Target: nodeID})
+				} else {
+					archLinks = append(archLinks, archLink{Source: rootID, Target: nodeID})
+				}
+			}
+		}
+	}
+
+	var archJSON []byte
+	if len(archNodes) > 1 {
+		archJSON, _ = json.Marshal(archOverview{Nodes: archNodes, Links: archLinks})
+	}
 
 	// JSON-LD
 	websiteSchema := schemaGen.GenerateWebSiteSchema(imageURL)
@@ -970,7 +1151,8 @@ func (b *Builder) renderHomepage(
 			Type:        "website",
 			SiteName:    b.cfg.Site.Name,
 		},
-		ChartData: template.HTML(chartJSON),
+		ChartData: template.JS(chartJSON),
+		ArchData:  template.JS(archJSON),
 		CTA:       b.cfg.Extra.CTA,
 	}
 

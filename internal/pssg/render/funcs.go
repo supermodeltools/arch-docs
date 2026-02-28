@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"math"
 	"net/url"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -257,19 +258,13 @@ func sliceHelper(items interface{}, start, end int) interface{} {
 }
 
 func length(v interface{}) int {
-	switch val := v.(type) {
-	case []string:
-		return len(val)
-	case []*entity.Entity:
-		return len(val)
-	case []interface{}:
-		return len(val)
-	case string:
-		return len(val)
-	case map[string]interface{}:
-		return len(val)
-	case []map[string]interface{}:
-		return len(val)
+	if v == nil {
+		return 0
+	}
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Slice, reflect.Map, reflect.Array, reflect.String:
+		return rv.Len()
 	}
 	return 0
 }

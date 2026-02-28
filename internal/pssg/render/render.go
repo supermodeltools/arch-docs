@@ -38,7 +38,7 @@ type EntityPageContext struct {
 	ValidSlugs      map[string]map[string]bool
 	Contributors    map[string]interface{}
 	OG              OGMeta
-	ChartData       template.HTML
+	ChartData       template.JS
 	CTA             config.CTAConfig
 	SourceCode      string
 	SourceLang      string
@@ -54,9 +54,9 @@ type HomepageContext struct {
 	EntityCount   int
 	Contributors  map[string]interface{}
 	OG            OGMeta
-	ChartData     template.HTML
+	ChartData     template.JS
 	CTA           config.CTAConfig
-	ArchData      template.HTML
+	ArchData      template.JS
 }
 
 // HubPageContext is the template context for taxonomy hub (category) pages.
@@ -72,7 +72,7 @@ type HubPageContext struct {
 	Contributors   map[string]interface{}
 	ContributorProfile map[string]interface{}
 	OG             OGMeta
-	ChartData      template.HTML
+	ChartData      template.JS
 	CTA            config.CTAConfig
 }
 
@@ -89,7 +89,7 @@ type TaxonomyIndexContext struct {
 	Breadcrumbs   []Breadcrumb
 	AllTaxonomies []taxonomy.Taxonomy
 	OG            OGMeta
-	ChartData     template.HTML
+	ChartData     template.JS
 	CTA           config.CTAConfig
 }
 
@@ -104,7 +104,7 @@ type LetterPageContext struct {
 	Breadcrumbs   []Breadcrumb
 	AllTaxonomies []taxonomy.Taxonomy
 	OG            OGMeta
-	ChartData     template.HTML
+	ChartData     template.JS
 	CTA           config.CTAConfig
 }
 
@@ -119,7 +119,7 @@ type AllEntitiesPageContext struct {
 	EntityCount    int
 	TotalEntities  int
 	OG             OGMeta
-	ChartData      template.HTML
+	ChartData      template.JS
 	CTA            config.CTAConfig
 }
 

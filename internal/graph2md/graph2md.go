@@ -1464,6 +1464,10 @@ type graphNode struct {
 	Label string `json:"label"`
 	Type  string `json:"type"`
 	Slug  string `json:"slug"`
+	LC    int    `json:"lc,omitempty"`   // line count
+	Lang  string `json:"lang,omitempty"` // language
+	CC    int    `json:"cc,omitempty"`   // call count (calls out)
+	CBC   int    `json:"cbc,omitempty"`  // called by count
 }
 
 type graphEdge struct {
@@ -1499,11 +1503,26 @@ func (c *renderContext) writeGraphData(sb *strings.Builder) {
 		if len(n.Labels) > 0 {
 			nodeType = n.Labels[0]
 		}
+		// Enrichment data
+		lineCount := 0
+		startLine := getNum(n.Properties, "startLine")
+		endLine := getNum(n.Properties, "endLine")
+		if startLine > 0 && endLine > 0 {
+			lineCount = endLine - startLine + 1
+		}
+		lang := getStr(n.Properties, "language")
+		callCount := len(c.calls[nodeID])
+		calledByCount := len(c.calledBy[nodeID])
+
 		nodes = append(nodes, graphNode{
 			ID:    nodeID,
 			Label: label,
 			Type:  nodeType,
 			Slug:  c.slugLookup[nodeID],
+			LC:    lineCount,
+			Lang:  lang,
+			CC:    callCount,
+			CBC:   calledByCount,
 		})
 	}
 
