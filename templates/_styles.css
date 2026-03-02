@@ -69,6 +69,8 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent-light); 
 .site-nav { display: flex; gap: 16px; align-items: center; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .site-nav a { color: var(--text-muted); font-size: 14px; font-weight: 500; white-space: nowrap; }
 .site-nav a:hover { color: var(--text); text-decoration: none; }
+.nav-all-repos { color: var(--accent-light) !important; padding-right: 12px; margin-right: 4px; border-right: 1px solid var(--border); }
+.nav-all-repos:hover { color: var(--text) !important; }
 
 /* Footer */
 .site-footer {
