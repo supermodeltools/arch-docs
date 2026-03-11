@@ -639,6 +639,39 @@ a.pill:hover {
   tab-size: 2;
   margin-bottom: 0;
 }
+/* Homepage Composition (flexbox) */
+.hp-composition {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 120px;
+}
+.hp-comp-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 12px 14px;
+  min-width: 120px;
+  min-height: 56px;
+  text-decoration: none;
+  opacity: 0.85;
+  transition: opacity 0.2s;
+}
+.hp-comp-item:hover { opacity: 1; text-decoration: none; }
+.hp-comp-name {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font);
+  white-space: nowrap;
+}
+.hp-comp-count {
+  color: rgba(255,255,255,0.7);
+  font-size: 12px;
+  font-family: var(--mono);
+  margin-top: 2px;
+}
+
 #homepage-chart, #hub-chart, #all-entities-chart { width: 100%; }
 #homepage-chart svg, #hub-chart svg, #taxonomy-chart svg, #all-entities-chart svg, #letter-chart svg {
   width: 100%;
