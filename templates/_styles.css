@@ -1,18 +1,18 @@
 :root {
-  --bg: #0f1117;
-  --bg-card: #1a1d27;
-  --bg-hover: #22263a;
-  --border: #2a2e3e;
-  --text: #e4e4e7;
-  --text-muted: #9ca3af;
-  --accent: #6366f1;
-  --accent-light: #818cf8;
-  --green: #22c55e;
-  --orange: #f59e0b;
-  --red: #ef4444;
-  --blue: #3b82f6;
-  --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --bg: #000000;
+  --bg-card: #161616;
+  --bg-hover: #08191C;
+  --border: #202020;
+  --text: #E9E9E9;
+  --text-muted: #808080;
+  --accent: #71B9BC;
+  --accent-light: #8CC6C9;
+  --green: #7CCE86;
+  --orange: #D0A27D;
+  --red: #E589C6;
+  --blue: #8E8CE9;
+  --font: 'Public Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'Martian Mono', 'Fira Code', monospace;
   --max-w: 1200px;
   --radius: 8px;
 }
@@ -270,9 +270,9 @@ a.pill:hover {
 }
 .hero-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
 .hero-btn-star { border-color: var(--orange); color: var(--orange); }
-.hero-btn-star:hover { background: rgba(245, 158, 11, 0.1); }
+.hero-btn-star:hover { background: rgba(208, 162, 125, 0.1); }
 .hero-btn-fork { border-color: var(--blue); color: var(--blue); }
-.hero-btn-fork:hover { background: rgba(59, 130, 246, 0.1); }
+.hero-btn-fork:hover { background: rgba(142, 140, 233, 0.1); }
 .hero-stats {
   display: flex;
   justify-content: center;
@@ -521,7 +521,7 @@ a.pill:hover {
 
 /* CTA Banner */
 .cta-section {
-  background: linear-gradient(135deg, var(--bg-card) 0%, #12141d 100%);
+  background: linear-gradient(135deg, var(--bg-card) 0%, #08191C 100%);
   border: 1px solid var(--accent);
   border-radius: var(--radius);
   padding: 40px 32px;
@@ -607,7 +607,7 @@ a.pill:hover {
   margin: 0 0 8px 0;
 }
 .source-code {
-  background: #0d0f14;
+  background: #161616;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px;
@@ -620,7 +620,7 @@ a.pill:hover {
 .source-code code {
   font-family: var(--mono);
   font-size: 13px;
-  color: #e4e4e7;
+  color: #E9E9E9;
   white-space: pre;
   tab-size: 2;
   margin-bottom: 0;
