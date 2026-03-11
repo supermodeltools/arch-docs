@@ -175,6 +175,17 @@ window.addEventListener("load", function() {
             return "translate(" + d.x + "," + d.y + ")";
           });
         });
+
+        var fgResizeTimer;
+        window.addEventListener("resize", function() {
+          clearTimeout(fgResizeTimer);
+          fgResizeTimer = setTimeout(function() {
+            width = graphEl.clientWidth || 600;
+            svg.attr("width", width);
+            simulation.force("center", d3.forceCenter(width / 2, height / 2 + 10));
+            simulation.alpha(0.3).restart();
+          }, 150);
+        });
       }
     } catch (e) {
       console.error("Force graph error:", e);
@@ -363,6 +374,17 @@ window.addEventListener("load", function() {
             d.y = Math.max(40, Math.min(aoH - 40, d.y));
             return "translate(" + d.x + "," + d.y + ")";
           });
+        });
+
+        var aoResizeTimer;
+        window.addEventListener("resize", function() {
+          clearTimeout(aoResizeTimer);
+          aoResizeTimer = setTimeout(function() {
+            aoW = archOverEl.clientWidth || 800;
+            aoSvg.attr("width", aoW);
+            aoSim.force("center", d3.forceCenter(aoW / 2, aoH / 2));
+            aoSim.alpha(0.3).restart();
+          }, 150);
         });
       }
     } catch (e) { console.error("Architecture overview error:", e); }
