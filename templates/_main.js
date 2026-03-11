@@ -76,11 +76,11 @@ window.addEventListener("load", function() {
 
         var typeColors = {
           File: "#5C9699", Function: "#7CCE86", Class: "#D0A27D",
-          Type: "#E589C6", Domain: "#71B9BC", Subdomain: "#8E8CE9", Directory: "#505050"
+          Type: "#E589C6", Domain: "#71B9BC", Subdomain: "#8E8CE9", Directory: "#808080"
         };
         var edgeColors = {
           imports: "#5C9699", calls: "#7CCE86", defines: "#D0A27D",
-          extends: "#E589C6", contains: "#505050", belongsTo: "#8E8CE9", partOf: "#71B9BC"
+          extends: "#E589C6", contains: "#808080", belongsTo: "#8E8CE9", partOf: "#71B9BC"
         };
 
         // Compute node radius from enriched lineCount data
@@ -102,7 +102,7 @@ window.addEventListener("load", function() {
         legendKeys.forEach(function(t) {
           svg.append("rect").attr("x", lgX).attr("y", 4).attr("width", 10).attr("height", 10).attr("rx", 2)
             .attr("fill", edgeColors[t] || "#202020");
-          svg.append("text").attr("x", lgX + 14).attr("y", 12).attr("fill", "#505050").attr("font-size", "10px")
+          svg.append("text").attr("x", lgX + 14).attr("y", 12).attr("fill", "#808080").attr("font-size", "10px")
             .attr("font-family", "Public Sans,system-ui,sans-serif").text(t);
           lgX += t.length * 6 + 26;
         });
@@ -133,7 +133,7 @@ window.addEventListener("load", function() {
 
         node.append("circle")
           .attr("r", nodeR)
-          .attr("fill", function(d) { return typeColors[d.type] || "#505050"; })
+          .attr("fill", function(d) { return typeColors[d.type] || "#808080"; })
           .attr("stroke", function(d) { return d.slug === centerSlug ? "#fff" : "none"; })
           .attr("stroke-width", function(d) { return d.slug === centerSlug ? 2.5 : 0; })
           .attr("opacity", function(d) { return d.slug === centerSlug ? 1 : 0.85; });
@@ -210,7 +210,7 @@ window.addEventListener("load", function() {
         { key: "fn", label: "Functions", color: "#A3A2ED" },
         { key: "cl", label: "Classes", color: "#E589C6" },
         { key: "tc", label: "Types", color: "#A98466" },
-        { key: "fc", label: "Files", color: "#505050" }
+        { key: "fc", label: "Files", color: "#808080" }
       ];
       var metrics = metricDefs.filter(function(d) { return ep[d.key] > 0; })
         .map(function(d) { return { label: d.label, value: ep[d.key], color: d.color }; });
@@ -222,7 +222,7 @@ window.addEventListener("load", function() {
 
       var epEdgeColors = {
         calls: "#5C9699", defines: "#7CCE86", belongsTo: "#8E8CE9",
-        imports: "#D0A27D", extends: "#E589C6", contains: "#505050", partOf: "#71B9BC"
+        imports: "#D0A27D", extends: "#E589C6", contains: "#808080", partOf: "#71B9BC"
       };
 
       var hasMetrics = metrics.length > 0;
@@ -259,19 +259,19 @@ window.addEventListener("load", function() {
         var stackW = Math.min(epW - 130, 500);
         var stackScale = d3.scaleLinear().domain([0, totalEdgeCount]).range([0, stackW]);
         var sx = 100, sy = yOff + 6;
-        svg.append("text").attr("x", 0).attr("y", sy + 2).attr("fill", "#505050").attr("font-size", "11px")
+        svg.append("text").attr("x", 0).attr("y", sy + 2).attr("fill", "#808080").attr("font-size", "11px")
           .attr("font-weight", "600").attr("font-family", "Public Sans,system-ui,sans-serif").text("RELATIONSHIPS");
         var cx = sx;
         edgeTypes.forEach(function(e, i) {
           var w = Math.max(stackScale(e.count), 3);
           svg.append("rect").attr("x", cx).attr("y", sy - 6).attr("width", w).attr("height", 18)
-            .attr("rx", i === 0 ? 3 : 0).attr("fill", epEdgeColors[e.type] || "#505050").attr("opacity", 0.85);
+            .attr("rx", i === 0 ? 3 : 0).attr("fill", epEdgeColors[e.type] || "#808080").attr("opacity", 0.85);
           cx += w;
         });
         var ly = sy + 18, lx = sx;
         edgeTypes.forEach(function(e) {
           svg.append("rect").attr("x", lx).attr("y", ly).attr("width", 8).attr("height", 8).attr("rx", 2)
-            .attr("fill", epEdgeColors[e.type] || "#505050");
+            .attr("fill", epEdgeColors[e.type] || "#808080");
           svg.append("text").attr("x", lx + 12).attr("y", ly + 7).attr("fill", "#808080").attr("font-size", "10px")
             .attr("font-family", "Public Sans,system-ui,sans-serif").text(e.type + " " + e.count);
           lx += e.type.length * 6.5 + 36;
@@ -282,7 +282,7 @@ window.addEventListener("load", function() {
 
       if (ep.sl > 0 && ep.el > 0) {
         var fy = yOff + 8, fw = Math.min(epW - 130, 500), fx = 100;
-        svg.append("text").attr("x", 0).attr("y", fy + 2).attr("fill", "#505050").attr("font-size", "11px")
+        svg.append("text").attr("x", 0).attr("y", fy + 2).attr("fill", "#808080").attr("font-size", "11px")
           .attr("font-weight", "600").attr("font-family", "Public Sans,system-ui,sans-serif").text("FILE POSITION");
         svg.append("rect").attr("x", fx).attr("y", fy - 5).attr("width", fw).attr("height", 14).attr("rx", 3)
           .attr("fill", "#161616").attr("stroke", "#202020").attr("stroke-width", 1);
@@ -338,7 +338,7 @@ window.addEventListener("load", function() {
 
         aoNode.append("circle")
           .attr("r", function(d) { return d.type === "root" ? 24 : radiusScale(d.count); })
-          .attr("fill", function(d) { return aoTypeColors[d.type] || "#505050"; })
+          .attr("fill", function(d) { return aoTypeColors[d.type] || "#808080"; })
           .attr("opacity", 0.9)
           .attr("stroke", function(d) { return d.type === "root" ? "#8CC6C9" : "none"; })
           .attr("stroke-width", function(d) { return d.type === "root" ? 2 : 0; });
@@ -396,7 +396,7 @@ window.addEventListener("load", function() {
   if (hpDataEl && hpChartEl) {
     try {
       var hpData = JSON.parse(hpDataEl.textContent.trim());
-      var hpColors = ["#71B9BC", "#5C9699", "#7CCE86", "#D0A27D", "#E589C6", "#8E8CE9", "#A3A2ED", "#505050"];
+      var hpColors = ["#71B9BC", "#5C9699", "#7CCE86", "#D0A27D", "#E589C6", "#8E8CE9", "#A3A2ED", "#808080"];
       var children = (hpData.taxonomies || []).map(function(t) {
         return { name: t.name, value: t.count, slug: t.slug };
       }).sort(function(a, b) { return b.value - a.value; });
@@ -431,7 +431,7 @@ window.addEventListener("load", function() {
     try {
       var hubData = JSON.parse(hubDataEl.textContent.trim());
       var distributions = hubData.distributions || {};
-      var hubColors = ["#71B9BC", "#5C9699", "#7CCE86", "#D0A27D", "#E589C6", "#8E8CE9", "#A3A2ED", "#505050"];
+      var hubColors = ["#71B9BC", "#5C9699", "#7CCE86", "#D0A27D", "#E589C6", "#8E8CE9", "#A3A2ED", "#808080"];
       var dimLabels = { node_type: "Node Types", language: "Languages", domain: "Domains", extension: "File Extensions" };
       var dimOrder = ["node_type", "language", "domain", "extension"];
 
@@ -460,7 +460,7 @@ window.addEventListener("load", function() {
           .on("click", function(event, d) { window.location.href = "/" + bestKey + "/" + toSlug(d.data.name) + ".html"; });
         arcs.append("title").text(function(d) { return d.data.name + ": " + d.data.count; });
         g.append("text").attr("text-anchor", "middle").attr("y", 6).attr("fill", "#FFFFFF").attr("font-size", "20px").attr("font-weight", "700").attr("font-family", "Public Sans,system-ui,sans-serif").text(hubData.totalEntities || "");
-        svg.append("text").attr("x", cx).attr("y", hubH - 4).attr("text-anchor", "middle").attr("fill", "#505050").attr("font-size", "11px").attr("font-family", "Public Sans,system-ui,sans-serif").text(dimLabels[bestKey] || bestKey);
+        svg.append("text").attr("x", cx).attr("y", hubH - 4).attr("text-anchor", "middle").attr("fill", "#808080").attr("font-size", "11px").attr("font-family", "Public Sans,system-ui,sans-serif").text(dimLabels[bestKey] || bestKey);
         var legendX = cx + radius + 20;
         dist.forEach(function(d, i) {
           if (i >= 8) return;
@@ -486,7 +486,7 @@ window.addEventListener("load", function() {
           var pbMax = d3.max(profileBars, function(d) { return d.count; }) || 1;
           var pbScale = d3.scaleLinear().domain([0, pbMax]).range([0, pbW - pbLabelW - 100]);
           var svg = d3.select(hubChartEl).append("svg").attr("width", pbW).attr("height", pbH);
-          svg.append("text").attr("x", 0).attr("y", 14).attr("fill", "#505050").attr("font-size", "11px").attr("font-family", "Public Sans,system-ui,sans-serif").text(hubData.entryName + " — " + hubData.totalEntities + " entities");
+          svg.append("text").attr("x", 0).attr("y", 14).attr("fill", "#808080").attr("font-size", "11px").attr("font-family", "Public Sans,system-ui,sans-serif").text(hubData.entryName + " — " + hubData.totalEntities + " entities");
           profileBars.forEach(function(d, i) {
             var y = 24 + i * (pbBarH + pbGap);
             svg.append("text").attr("x", pbLabelW - 6).attr("y", y + pbBarH / 2 + 4).attr("text-anchor", "end").attr("fill", "#808080").attr("font-size", "12px").attr("font-family", "Public Sans,system-ui,sans-serif").text(d.name);
@@ -509,7 +509,7 @@ window.addEventListener("load", function() {
         var typeColors = { Function: "#7CCE86", Class: "#D0A27D", File: "#5C9699", Type: "#E589C6", Domain: "#71B9BC", Subdomain: "#8E8CE9" };
 
         var teSvg = d3.select(hubSecEl).append("svg").attr("width", teW).attr("height", teH);
-        teSvg.append("text").attr("x", 0).attr("y", 12).attr("fill", "#505050").attr("font-size", "11px").attr("font-weight", "600")
+        teSvg.append("text").attr("x", 0).attr("y", 12).attr("fill", "#808080").attr("font-size", "11px").attr("font-weight", "600")
           .attr("text-transform", "uppercase").attr("letter-spacing", "0.04em")
           .attr("font-family", "Public Sans,system-ui,sans-serif").text("LARGEST BY LINES OF CODE");
 
@@ -524,7 +524,7 @@ window.addEventListener("load", function() {
           g.append("rect").attr("x", teLabelW).attr("y", y).attr("width", Math.max(teScale(d.lines), 3)).attr("height", teBarH)
             .attr("rx", 3).attr("fill", typeColors[d.type] || "#71B9BC").attr("opacity", 0.85);
           g.append("text").attr("x", teLabelW + Math.max(teScale(d.lines), 3) + 5).attr("y", y + teBarH / 2 + 4)
-            .attr("fill", "#505050").attr("font-size", "10px").attr("font-family", "Public Sans,system-ui,sans-serif").text(d.lines);
+            .attr("fill", "#808080").attr("font-size", "10px").attr("font-family", "Public Sans,system-ui,sans-serif").text(d.lines);
           g.append("title").text(d.name + " (" + d.type + ") — " + d.lines + " lines");
         });
       }
@@ -570,7 +570,7 @@ window.addEventListener("load", function() {
       if (types.length > 0) {
         var aeW = aeChartEl.clientWidth || 800;
         var aeH = 320;
-        var aeColors = ["#71B9BC", "#5C9699", "#7CCE86", "#D0A27D", "#E589C6", "#8E8CE9", "#A3A2ED", "#505050"];
+        var aeColors = ["#71B9BC", "#5C9699", "#7CCE86", "#D0A27D", "#E589C6", "#8E8CE9", "#A3A2ED", "#808080"];
         var root = d3.hierarchy({ children: types }).sum(function(d) { return d.count || 0; });
         d3.pack().size([aeW, aeH]).padding(4)(root);
         var svg = d3.select(aeChartEl).append("svg").attr("width", aeW).attr("height", aeH);
