@@ -3,7 +3,7 @@
   --bg-card: #161616;
   --bg-hover: #08191C;
   --border: #202020;
-  --text: #E9E9E9;
+  --text: #FFFFFF;
   --text-muted: #808080;
   --accent: #71B9BC;
   --accent-light: #8CC6C9;
@@ -11,10 +11,10 @@
   --orange: #D0A27D;
   --red: #E589C6;
   --blue: #8E8CE9;
-  --font: 'Public Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  --mono: 'Martian Mono', 'Fira Code', monospace;
+  --font: 'Public Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --mono: 'Martian Mono', "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   --max-w: 1200px;
-  --radius: 8px;
+  --radius: 0px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -620,7 +620,7 @@ a.pill:hover {
 .source-code code {
   font-family: var(--mono);
   font-size: 13px;
-  color: #E9E9E9;
+  color: #FFFFFF;
   white-space: pre;
   tab-size: 2;
   margin-bottom: 0;
