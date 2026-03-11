@@ -643,19 +643,19 @@ a.pill:hover {
 .hp-composition {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  min-height: 120px;
+  gap: 3px;
+  height: 200px;
 }
 .hp-comp-item {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: 12px 14px;
-  min-height: 56px;
+  justify-content: flex-end;
+  padding: 10px 12px;
   text-decoration: none;
   opacity: 0.85;
   transition: opacity 0.2s;
   box-sizing: border-box;
+  align-self: stretch;
 }
 .hp-comp-item:hover { opacity: 1; text-decoration: none; }
 .hp-comp-name {
