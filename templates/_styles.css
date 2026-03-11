@@ -639,23 +639,30 @@ a.pill:hover {
   tab-size: 2;
   margin-bottom: 0;
 }
-/* Homepage Composition (flexbox) */
-.hp-composition {
+/* Homepage Composition (flexbox two-row) */
+.hp-composition-wrap {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 3px;
-  height: 200px;
 }
+.hp-comp-row {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+.hp-comp-row-top { min-height: 140px; }
+.hp-comp-row-bottom { min-height: 60px; }
 .hp-comp-item {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   padding: 10px 12px;
+  min-width: 80px;
   text-decoration: none;
   opacity: 0.85;
   transition: opacity 0.2s;
   box-sizing: border-box;
-  align-self: stretch;
+  flex-grow: 1;
 }
 .hp-comp-item:hover { opacity: 1; text-decoration: none; }
 .hp-comp-name {
