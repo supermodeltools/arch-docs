@@ -381,49 +381,22 @@ window.addEventListener("load", function() {
 
       if (children.length > 0) {
         var total = children.reduce(function(s, d) { return s + d.value; }, 0);
-
-        // Split into top row (large) and bottom row (small) at ~65% cumulative
-        var cumulative = 0;
-        var splitIdx = children.length;
-        for (var si = 0; si < children.length; si++) {
-          cumulative += children[si].value;
-          if (cumulative / total >= 0.65 && si > 0) { splitIdx = si + 1; break; }
-        }
-        var topItems = children.slice(0, splitIdx);
-        var bottomItems = children.slice(splitIdx);
-
-        var wrapper = document.createElement("div");
-        wrapper.className = "hp-composition-wrap";
-
-        function makeRow(items, colorOffset) {
-          var rowTotal = items.reduce(function(s, d) { return s + d.value; }, 0);
-          var row = document.createElement("div");
-          row.className = "hp-comp-row";
-          items.forEach(function(d, i) {
-            var el = document.createElement("a");
-            el.href = "/" + d.slug + "/index.html";
-            el.className = "hp-comp-item";
-            var pct = (d.value / rowTotal) * 100;
-            el.style.flexBasis = "calc(" + pct + "% - 3px)";
-            el.style.flexGrow = "0";
-            el.style.flexShrink = "0";
-            el.style.backgroundColor = hpColors[(i + colorOffset) % hpColors.length];
-            el.title = d.name + ": " + d.value + " entries";
-            el.innerHTML = '<span class="hp-comp-name">' + d.name + '</span><span class="hp-comp-count">' + d.value + '</span>';
-            row.appendChild(el);
-          });
-          return row;
-        }
-
-        var topRow = makeRow(topItems, 0);
-        topRow.classList.add("hp-comp-row-top");
-        wrapper.appendChild(topRow);
-        if (bottomItems.length > 0) {
-          var bottomRow = makeRow(bottomItems, topItems.length);
-          bottomRow.classList.add("hp-comp-row-bottom");
-          wrapper.appendChild(bottomRow);
-        }
-        hpChartEl.appendChild(wrapper);
+        var container = document.createElement("div");
+        container.className = "hp-composition";
+        children.forEach(function(d, i) {
+          var el = document.createElement("a");
+          el.href = "/" + d.slug + "/index.html";
+          el.className = "hp-comp-item";
+          var pct = (d.value / total) * 100;
+          el.style.flexBasis = Math.max(pct, 10) + "%";
+          el.style.flexGrow = "0";
+          el.style.flexShrink = "0";
+          el.style.backgroundColor = hpColors[i % hpColors.length];
+          el.title = d.name + ": " + d.value + " entries";
+          el.innerHTML = '<span class="hp-comp-name">' + d.name + '</span><span class="hp-comp-count">' + d.value + '</span>';
+          container.appendChild(el);
+        });
+        hpChartEl.appendChild(container);
       }
     } catch (e) { console.error("Homepage composition error:", e); }
   }
