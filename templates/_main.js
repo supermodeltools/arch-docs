@@ -375,16 +375,13 @@ window.addEventListener("load", function() {
     try {
       var hpData = JSON.parse(hpDataEl.textContent.trim());
       var hpW = hpChartEl.clientWidth || 800;
+      var hpH = 300;
       var children = (hpData.taxonomies || []).map(function(t) {
         return { name: t.name, value: t.count, slug: t.slug };
       });
       if (children.length > 0) {
-        var useSlice = hpW < 600;
-        var hpH = useSlice ? children.length * 44 + 8 : 300;
         var root = d3.hierarchy({ name: "root", children: children }).sum(function(d) { return d.value || 0; }).sort(function(a, b) { return b.value - a.value; });
-        var tm = d3.treemap().size([hpW, hpH]).padding(3).round(true);
-        if (useSlice) tm.tile(d3.treemapSlice);
-        tm(root);
+        d3.treemap().size([hpW, hpH]).padding(3).round(true)(root);
         var colors = ["#71B9BC", "#5C9699", "#7CCE86", "#D0A27D", "#E589C6", "#8E8CE9", "#A3A2ED", "#505050"];
         var svg = d3.select(hpChartEl).append("svg").attr("width", hpW).attr("height", hpH);
         var cell = svg.selectAll("g").data(root.leaves()).enter().append("g")
