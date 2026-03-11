@@ -431,12 +431,6 @@ window.addEventListener("load", function() {
     try {
       var hubData = JSON.parse(hubDataEl.textContent.trim());
       var distributions = hubData.distributions || {};
-      var hasAnyDist = Object.keys(distributions).some(function(k) { return distributions[k] && distributions[k].length > 0; });
-      var hasTopEnts = hubData.topEntities && hubData.topEntities.length > 0;
-      if (!hasAnyDist && !hasTopEnts) {
-        var chartPanel = hubChartEl.closest(".chart-panel");
-        if (chartPanel) chartPanel.style.display = "none";
-      }
       var hubColors = ["#71B9BC", "#5C9699", "#7CCE86", "#D0A27D", "#E589C6", "#8E8CE9", "#A3A2ED", "#505050"];
       var dimLabels = { node_type: "Node Types", language: "Languages", domain: "Domains", extension: "File Extensions" };
       var dimOrder = ["node_type", "language", "domain", "extension"];
