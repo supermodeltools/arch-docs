@@ -651,11 +651,11 @@ a.pill:hover {
   flex-direction: column;
   justify-content: center;
   padding: 12px 14px;
-  min-width: 120px;
   min-height: 56px;
   text-decoration: none;
   opacity: 0.85;
   transition: opacity 0.2s;
+  box-sizing: border-box;
 }
 .hp-comp-item:hover { opacity: 1; text-decoration: none; }
 .hp-comp-name {

@@ -380,13 +380,17 @@ window.addEventListener("load", function() {
       }).sort(function(a, b) { return b.value - a.value; });
 
       if (children.length > 0) {
+        var total = children.reduce(function(s, d) { return s + d.value; }, 0);
         var container = document.createElement("div");
         container.className = "hp-composition";
         children.forEach(function(d, i) {
           var el = document.createElement("a");
           el.href = "/" + d.slug + "/index.html";
           el.className = "hp-comp-item";
-          el.style.flexGrow = d.value;
+          var pct = (d.value / total) * 100;
+          el.style.flexBasis = Math.max(pct, 10) + "%";
+          el.style.flexGrow = "0";
+          el.style.flexShrink = "0";
           el.style.backgroundColor = hpColors[i % hpColors.length];
           el.title = d.name + ": " + d.value + " entries";
           el.innerHTML = '<span class="hp-comp-name">' + d.name + '</span><span class="hp-comp-count">' + d.value + '</span>';
