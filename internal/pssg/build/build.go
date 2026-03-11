@@ -574,15 +574,66 @@ func (b *Builder) renderTaxonomyPages(
 		}
 
 		// Hub chart data (same for all pages)
+		// Build distributions: breakdown by each taxonomy field (except the current one)
+		distFields := []struct {
+			Key   string
+			Field string
+		}{
+			{"node_type", "node_type"},
+			{"language", "language"},
+			{"domain", "domain"},
+			{"extension", "extension"},
+		}
+		distributions := make(map[string][]render.NameCount)
+		for _, df := range distFields {
+			if df.Key == tax.Name {
+				continue // skip the current taxonomy dimension
+			}
+			dist := countFieldDistribution(entry.Entities, df.Field, 8)
+			if len(dist) > 0 {
+				distributions[df.Key] = dist
+			}
+		}
+
+		// Build topEntities: largest by line count
+		type topEntity struct {
+			Name  string `json:"name"`
+			Type  string `json:"type"`
+			Lines int    `json:"lines"`
+			Slug  string `json:"slug"`
+		}
+		var topEnts []topEntity
+		for _, e := range entry.Entities {
+			lc := e.GetInt("line_count")
+			if lc > 0 {
+				topEnts = append(topEnts, topEntity{
+					Name:  e.GetString("title"),
+					Type:  e.GetString("node_type"),
+					Lines: lc,
+					Slug:  e.Slug,
+				})
+			}
+		}
+		sort.Slice(topEnts, func(i, j int) bool {
+			return topEnts[i].Lines > topEnts[j].Lines
+		})
+		if len(topEnts) > 10 {
+			topEnts = topEnts[:10]
+		}
+
 		type hubChart struct {
-			EntryName        string             `json:"entryName"`
-			TotalEntities    int                `json:"totalEntities"`
-			TypeDistribution []render.NameCount `json:"typeDistribution"`
+			EntryName        string                        `json:"entryName"`
+			TotalEntities    int                           `json:"totalEntities"`
+			TypeDistribution []render.NameCount            `json:"typeDistribution"`
+			Distributions    map[string][]render.NameCount `json:"distributions"`
+			TopEntities      []topEntity                   `json:"topEntities"`
 		}
 		hubChartJSON, _ := json.Marshal(hubChart{
 			EntryName:        entry.Name,
 			TotalEntities:    len(entry.Entities),
 			TypeDistribution: typeDist,
+			Distributions:    distributions,
+			TopEntities:      topEnts,
 		})
 
 		for page := 1; page <= totalPages; page++ {
