@@ -88,6 +88,12 @@ type Artifact struct {
 	Stats json.RawMessage `json:"stats"`
 }
 
+// domainEdge records a relationship between two Domain nodes.
+type domainEdge struct {
+	nodeID  string // the other domain's node ID
+	relType string // original relationship type (e.g. "DOMAIN_RELATES")
+}
+
 // Run executes graph2md conversion. inputFiles is a comma-separated list of
 // paths to graph JSON files. outputDir is the directory for markdown output.
 func Run(inputFiles, outputDir, repoName, repoURL string, maxEntities int) error {
@@ -164,6 +170,10 @@ func Run(inputFiles, outputDir, repoName, repoURL string, maxEntities int) error
 	subdomainFuncs := make(map[string][]string)   // subdomain name -> function node IDs
 	subdomainClasses := make(map[string][]string) // subdomain name -> class node IDs
 
+	// Domain-to-domain relationships
+	domainRelatesOut := make(map[string][]domainEdge) // domain node ID -> outgoing related domains
+	domainRelatesIn := make(map[string][]domainEdge)  // domain node ID -> incoming related domains
+
 	for _, rel := range allRels {
 		switch rel.Type {
 		case "IMPORTS":
@@ -202,6 +212,14 @@ func Run(inputFiles, outputDir, repoName, repoURL string, maxEntities int) error
 			endNode := nodeLookup[rel.EndNode]
 			if endNode != nil {
 				partOfDomain[rel.StartNode] = getStr(endNode.Properties, "name")
+			}
+		default:
+			// Capture domain-to-domain relationships (any type connecting two Domain nodes)
+			startNode := nodeLookup[rel.StartNode]
+			endNode := nodeLookup[rel.EndNode]
+			if startNode != nil && endNode != nil && hasLabel(startNode, "Domain") && hasLabel(endNode, "Domain") && rel.StartNode != rel.EndNode {
+				domainRelatesOut[rel.StartNode] = append(domainRelatesOut[rel.StartNode], domainEdge{nodeID: rel.EndNode, relType: rel.Type})
+				domainRelatesIn[rel.EndNode] = append(domainRelatesIn[rel.EndNode], domainEdge{nodeID: rel.StartNode, relType: rel.Type})
 			}
 		}
 	}
@@ -449,6 +467,8 @@ func Run(inputFiles, outputDir, repoName, repoURL string, maxEntities int) error
 			domainSubdomains:   domainSubdomains,
 			subdomainFuncs:     subdomainFuncs,
 			subdomainClasses:   subdomainClasses,
+			domainRelatesOut:   domainRelatesOut,
+			domainRelatesIn:    domainRelatesIn,
 		}
 
 		md := ctx.generateMarkdown()
@@ -480,6 +500,7 @@ type renderContext struct {
 	domainNodeByName, subdomainNodeByName         map[string]string
 	domainSubdomains                              map[string][]string
 	subdomainFuncs, subdomainClasses              map[string][]string
+	domainRelatesOut, domainRelatesIn             map[string][]domainEdge
 }
 
 // internalLink returns an HTML <a> tag linking to the entity page for nodeID,
@@ -1134,6 +1155,22 @@ func (c *renderContext) writeDomainBody(sb *strings.Builder) {
 		})
 	}
 
+	// Related Domains
+	outEdges := c.domainRelatesOut[c.node.ID]
+	inEdges := c.domainRelatesIn[c.node.ID]
+	if len(outEdges) > 0 || len(inEdges) > 0 {
+		sb.WriteString("## Related Domains\n\n")
+		for _, de := range outEdges {
+			label := c.resolveName(de.nodeID)
+			sb.WriteString(fmt.Sprintf("- %s %s\n", c.internalLink(de.nodeID, label), de.relType))
+		}
+		for _, de := range inEdges {
+			label := c.resolveName(de.nodeID)
+			sb.WriteString(fmt.Sprintf("- %s %s (incoming)\n", c.internalLink(de.nodeID, label), de.relType))
+		}
+		sb.WriteString("\n")
+	}
+
 	// Source Files
 	files := c.domainFiles[name]
 	if len(files) > 0 {
@@ -1652,7 +1689,7 @@ func (c *renderContext) writeGraphData(sb *strings.Builder) {
 		}
 	}
 
-	// For domains: add subdomain children
+	// For domains: add subdomain children and related domains
 	if c.label == "Domain" {
 		domName := getStr(c.node.Properties, "name")
 		relSets = append(relSets, struct {
@@ -1660,6 +1697,23 @@ func (c *renderContext) writeGraphData(sb *strings.Builder) {
 			relType string
 			reverse bool
 		}{c.domainSubdomains[domName], "contains", false})
+
+		// Related domains (outgoing)
+		for _, de := range c.domainRelatesOut[c.node.ID] {
+			relSets = append(relSets, struct {
+				ids     []string
+				relType string
+				reverse bool
+			}{[]string{de.nodeID}, "relatesTo", false})
+		}
+		// Related domains (incoming)
+		for _, de := range c.domainRelatesIn[c.node.ID] {
+			relSets = append(relSets, struct {
+				ids     []string
+				relType string
+				reverse bool
+			}{[]string{de.nodeID}, "relatesTo", true})
+		}
 	}
 	// For subdomains: add domain parent
 	if c.label == "Subdomain" {
@@ -1880,6 +1934,27 @@ func (c *renderContext) writeMermaidDiagram(sb *strings.Builder) {
 			mid := addNode(subID, label)
 			lines = append(lines, fmt.Sprintf("  %s[\"%s\"]", mid, label))
 			lines = append(lines, fmt.Sprintf("  %s --> %s", centerID, mid))
+		}
+
+		// Related domains (outgoing)
+		for _, de := range c.domainRelatesOut[c.node.ID] {
+			if nodeCount >= maxNodes {
+				break
+			}
+			label := mermaidEscape(c.resolveName(de.nodeID))
+			mid := addNode(de.nodeID, label)
+			lines = append(lines, fmt.Sprintf("  %s[\"%s\"]", mid, label))
+			lines = append(lines, fmt.Sprintf("  %s -->|%s| %s", centerID, mermaidEscape(de.relType), mid))
+		}
+		// Related domains (incoming)
+		for _, de := range c.domainRelatesIn[c.node.ID] {
+			if nodeCount >= maxNodes {
+				break
+			}
+			label := mermaidEscape(c.resolveName(de.nodeID))
+			mid := addNode(de.nodeID, label)
+			lines = append(lines, fmt.Sprintf("  %s[\"%s\"]", mid, label))
+			lines = append(lines, fmt.Sprintf("  %s -->|%s| %s", mid, mermaidEscape(de.relType), centerID))
 		}
 
 	case "Subdomain":
